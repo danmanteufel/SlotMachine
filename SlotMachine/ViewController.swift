@@ -8,7 +8,7 @@
 
 import UIKit
 
-//MARK: - View Controller Class
+//MARK: - View Controller
 class ViewController: UIViewController {
 
     
@@ -31,6 +31,8 @@ class ViewController: UIViewController {
     var betOneButton: UIButton!
     var betMaxButton: UIButton!
     var spinButton: UIButton!
+    
+    var slots:[[Slot]] = []
 
     //MARK: Defines
     let kMarginForView: CGFloat = 10.0 //Float or double (32 or 64 bit core)
@@ -50,6 +52,7 @@ class ViewController: UIViewController {
         setupSecondContainer(secondContainer)
         setupThirdContainer(thirdContainer)
         setupFourthContainer(fourthContainer)
+        
     }
     
     func resetButtonPressed (button: UIButton) {
@@ -66,6 +69,8 @@ class ViewController: UIViewController {
     
     func spinButtonPressed (button: UIButton) {
         println("Test Spin")
+        slots = Factory.createSlots(kNumberOfSlots, numberOfContainers: kNumberOfContainers)
+        setupSecondContainer(secondContainer)
     }
     
     //MARK: Helper Functions
@@ -111,14 +116,24 @@ class ViewController: UIViewController {
     }
     
     func setupSecondContainer (containerView: UIView) {
-        for containers in 0..<kNumberOfContainers {
-            for slots in 0..<kNumberOfSlots {
+        for containerNumber in 0..<kNumberOfContainers {
+            for slotNumber in 0..<kNumberOfSlots {
+                var slot:Slot
                 var slotImageView = UIImageView()
+                
+                if slots.count != 0 {
+                    let slotContainer = slots[containerNumber]
+                    slot = slotContainer[slotNumber]
+                    slotImageView.image = UIImage(named: slot.imageName)
+                } else {
+                    slotImageView.image = nil
+                }
+                
                 slotImageView.backgroundColor = UIColor.yellowColor()
                 slotImageView.frame = CGRect(x: containerView.bounds.origin.x +
-                                                (containerView.bounds.size.width * CGFloat(containers) * kThird),
+                                                (containerView.bounds.size.width * CGFloat(containerNumber) * kThird),
                                              y: containerView.bounds.origin.y +
-                                                (containerView.bounds.size.height * CGFloat(slots) * kThird),
+                                                (containerView.bounds.size.height * CGFloat(slotNumber) * kThird),
                                              width: containerView.bounds.width * kThird - kMarginForSlot,
                                              height: containerView.bounds.height * kThird - kMarginForSlot)
                 containerView.addSubview(slotImageView)
@@ -251,6 +266,97 @@ class ViewController: UIViewController {
                              forControlEvents: UIControlEvents.TouchUpInside)
         containerView.addSubview(spinButton)
     }
+}
 
+//MARK: - Model (NO UI ELEMENTS HERE!!!!)
+//MARK:  Structs
+struct Slot {
+    var value = 0
+    var imageName = "Ace"
+    var red = true
+    var isRed: Bool {return red}
+    var description: String {return "\(value),"+imageName+",\(isRed)"}
+}
+
+//MARK:  Classes
+class Factory { //Factory is a design pattern (look it up)
+    class func createSlots(numberOfSlots: Int, numberOfContainers: Int) -> [[Slot]] { //Class function = (+) function
+        var slots: [[Slot]] = []
+        
+        for container in 0..<numberOfContainers {
+            var slotArray:[Slot] = []
+            for slot in 0..<numberOfSlots {
+                slotArray.append(Factory.createSlot(slotArray))//Don't need the Factory. because inside the class
+            }
+            slots.append(slotArray)
+        }
+        
+        return slots
+    }
+    
+    class func createSlot(currentCards: [Slot]) -> Slot {
+        var currentCardValues:[Int] = []
+        for slot in currentCards {
+            currentCardValues.append(slot.value)
+        }
+        
+        var randomNumber = Int(arc4random_uniform(UInt32(13)))
+        while contains(currentCardValues, randomNumber + 1) {
+            randomNumber = Int(arc4random_uniform(UInt32(13)))
+        }
+        
+        var slot = Slot(value: 0, imageName: "", red: true)
+        switch randomNumber {
+        case 0:
+            slot.value = 1
+            slot.imageName = "Ace"
+        case 1:
+            slot.value = 2
+            slot.imageName = "Two"
+        case 2:
+            slot.value = 3
+            slot.imageName = "Three"
+        case 3:
+            slot.value = 4
+            slot.imageName = "Four"
+        case 4:
+            slot.value = 5
+            slot.imageName = "Five"
+            slot.red = false
+        case 5:
+            slot.value = 6
+            slot.imageName = "Six"
+            slot.red = false
+        case 6:
+            slot.value = 7
+            slot.imageName = "Seven"
+        case 7:
+            slot.value = 8
+            slot.imageName = "Eight"
+            slot.red = false
+        case 8:
+            slot.value = 9
+            slot.imageName = "Nine"
+            slot.red = false
+        case 9:
+            slot.value = 10
+            slot.imageName = "Ten"
+        case 10:
+            slot.value = 11
+            slot.imageName = "Jack"
+            slot.red = false
+        case 11:
+            slot.value = 12
+            slot.imageName = "Queen"
+            slot.red = false
+        case 12:
+            slot.value = 13
+            slot.imageName = "King"
+        default:
+            slot.value = 0
+            slot.imageName = ""
+        }
+        return slot
+    }
 }
 
