@@ -10,7 +10,6 @@ import UIKit
 
 //MARK: - View Controller
 class ViewController: UIViewController {
-
     
     //MARK: Properties
     var firstContainer: UIView!
@@ -32,45 +31,83 @@ class ViewController: UIViewController {
     var betMaxButton: UIButton!
     var spinButton: UIButton!
     
-    var slots:[[Slot]] = []
+    var slots:[[Slot]] = []//Should be in model?
+    
+    var credits = 0//Should be in model?
+    var currentBet = 0//Should be in model?
+    var winnings = 0//Should be in model?
 
     //MARK: Defines
     let kMarginForView: CGFloat = 10.0 //Float or double (32 or 64 bit core)
     let kMarginForSlot: CGFloat = 2.0
+    let kNumberOfContainers = 3//Can't really change due to logic
+    let kNumberOfSlots = 3//Can't really change due to logic
+    let kDefaultCredits = 50
+    let kMaxBet = 5
+    
     let kEighth: CGFloat = 1.0 / 8.0
     let kSixth: CGFloat = 1.0 / 6.0
     let kThird: CGFloat = 1.0 / 3.0
     let kHalf: CGFloat = 1.0 / 2.0
-    let kNumberOfContainers = 3
-    let kNumberOfSlots = 3
     
     //MARK: Flow Functions
     override func viewDidLoad() {
         super.viewDidLoad()
         setupContainerViews()
         setupFirstContainer(firstContainer)
-        setupSecondContainer(secondContainer)
         setupThirdContainer(thirdContainer)
         setupFourthContainer(fourthContainer)
-        
+        hardReset()
     }
     
     func resetButtonPressed (button: UIButton) {
         println("Test Reset")
+        hardReset()
     }
     
-    func betOneButtonPressed (button: UIButton) {
+    func betOneButtonPressed (button: UIButton) { //IS THIS REALLY MODEL LOGIC?
         println("Test Bet One")
+        if credits <= 0 { //SWITCH STATEMENT WITH UNDERSCORES????
+            showAlertWithText(header: "No More Credits",
+                              message: "Reset Game")
+        } else {
+            if currentBet < kMaxBet {
+                currentBet++
+                credits--
+                updateMainView()
+            } else {
+                showAlertWithText(message: "You can only bet 5 credits at a time")
+            }
+        }
     }
     
     func betMaxButtonPressed (button: UIButton) {
         println("Test Bet Max")
+        if credits <= kMaxBet {
+            showAlertWithText(header: "Not enough credits",
+                              message: "Bet less")
+        } else {
+            if currentBet < kMaxBet {
+                var creditsToBetMax = kMaxBet - currentBet
+                credits -= creditsToBetMax
+                currentBet += creditsToBetMax
+                updateMainView()
+            } else {
+                showAlertWithText(message: "You can only bet 5 credits at a time!")
+            }
+        }
     }
     
     func spinButtonPressed (button: UIButton) {
         println("Test Spin")
+        removeSlotImageViews()
         slots = Factory.createSlots(kNumberOfSlots, numberOfContainers: kNumberOfContainers)
         setupSecondContainer(secondContainer)
+        
+        winnings = currentBet * SlotBrain.computeWinnings(slots)
+        credits += winnings
+        currentBet = 0
+        updateMainView()
     }
     
     //MARK: Helper Functions
@@ -266,11 +303,57 @@ class ViewController: UIViewController {
                              forControlEvents: UIControlEvents.TouchUpInside)
         containerView.addSubview(spinButton)
     }
+    
+    func removeSlotImageViews() {
+        //let container: UIView? = secondContainer
+        let subViews: Array? = secondContainer!.subviews
+        for view in subViews! {
+            view.removeFromSuperview()
+        }
+    }
+    
+    func hardReset() {
+        removeSlotImageViews()
+        slots.removeAll(keepCapacity: true)//Know size of slots
+        setupSecondContainer(secondContainer)
+        credits = kDefaultCredits
+        winnings = 0
+        currentBet = 0
+        updateMainView()
+    }
+    
+    func updateMainView() {
+        creditsLabel.text = "\(credits)"
+        betLabel.text = "\(currentBet)"
+        winnerPaidLabel.text = "\(winnings)"
+    }
+    
+    func showAlertWithText(header: String = "Warning",  //Modular to support any number of alerts
+                           message: String) {//Warning is default
+        var alert = UIAlertController(title: header,
+                                      message: message,
+                                      preferredStyle: UIAlertControllerStyle.Alert)
+        alert.addAction(UIAlertAction(title: "Ok",
+                                      style: UIAlertActionStyle.Default,
+                                      handler: nil))
+        presentViewController(alert,
+                              animated: true,
+                              completion: nil)
+    }
 }
 
 //MARK: - Model (NO UI ELEMENTS HERE!!!!)
+//MARK: - Defines
+let kFlushWinnings = 1
+let kRoyalFlushWinnings = 15
+let kStraightWinnings = 1
+let kEpicStraightWinnings = 1000
+let kThreeOfAKindWinnings = 3
+let kThreesAllAroundWinnings = 50
+
 //MARK:  Structs
 struct Slot {
+    
     var value = 0
     var imageName = "Ace"
     var red = true
@@ -280,6 +363,7 @@ struct Slot {
 
 //MARK:  Classes
 class Factory { //Factory is a design pattern (look it up)
+    
     class func createSlots(numberOfSlots: Int, numberOfContainers: Int) -> [[Slot]] { //Class function = (+) function
         var slots: [[Slot]] = []
         
@@ -360,3 +444,84 @@ class Factory { //Factory is a design pattern (look it up)
     }
 }
 
+class SlotBrain {
+    
+    class func unpackSlotsIntoSlotRows(slots: [[Slot]]) -> [[Slot]] {
+        var slotRow1: [Slot] = []
+        var slotRow2: [Slot] = []
+        var slotRow3: [Slot] = []
+        
+        for slotArray in slots {
+            for index in 0..<slotArray.count {
+                let slot = slotArray[index]
+                switch index {
+                case 0:
+                    slotRow1.append(slot)
+                case 1:
+                    slotRow2.append(slot)
+                case 2:
+                    slotRow3.append(slot)
+                default:
+                    println("Error")
+                }
+            }
+        }
+        return [slotRow1, slotRow2, slotRow3]
+    }
+    
+    class func computeWinnings(slots: [[Slot]]) -> Int {
+        var slotsInRows = unpackSlotsIntoSlotRows(slots)
+        var winnings = 0
+        
+        var flushWinCount = 0
+        var straightWinCount = 0
+        var threeOfAKindWinCount = 0
+        
+        for slotRow in slotsInRows {
+            if checkFlush(slotRow) {
+                println("flush")
+                winnings += kFlushWinnings
+                flushWinCount++
+            }
+            if checkStraight(slotRow) {
+                println("three in a row")
+                winnings += kStraightWinnings
+                straightWinCount++
+            }
+            if checkThreeOfAKind(slotRow) {
+                println("three of a kind")
+                winnings += kThreeOfAKindWinnings
+                threeOfAKindWinCount++
+            }
+        }
+        
+        if flushWinCount == 3 {
+            println("Royal Flush")
+            winnings += kRoyalFlushWinnings
+        }
+        if straightWinCount == 3 {
+            println("Epic Straight")
+            winnings += kEpicStraightWinnings
+        }
+        if threeOfAKindWinCount == 3 {
+            println("Threes All Around")
+            winnings += kThreesAllAroundWinnings
+        }
+        
+        return winnings
+    }
+    
+    class func checkFlush(slotRow: [Slot]) -> Bool {
+        return slotRow[0].isRed && slotRow[1].isRed && slotRow[2].isRed ||
+               !slotRow[0].isRed && !slotRow[1].isRed && !slotRow[2].isRed
+    }
+    
+    class func checkStraight(slotRow: [Slot]) -> Bool {
+        return slotRow[0].value == slotRow[1].value + 1 && slotRow[0].value == slotRow[2].value + 2 ||
+               slotRow[0].value == slotRow[1].value - 1 && slotRow[0].value == slotRow[2].value - 2
+    }
+    
+    class func checkThreeOfAKind(slotRow: [Slot]) -> Bool {
+        return slotRow[0].value == slotRow[1].value && slotRow[0].value == slotRow[2].value
+    }
+}
